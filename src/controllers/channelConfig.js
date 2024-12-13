@@ -489,7 +489,7 @@
 const channelConfig = `<channel version="3.5.1">
   <id>111</id>
   <nextMetaDataId>3</nextMetaDataId>
-  <name>secure_json_to_hl7_dest_channel_writer</name>
+  <name>secure_json_to_hl7_dest_channel_write</name>
   <description></description>
   <revision>1</revision>
   <sourceConnector version="3.5.1">
@@ -552,14 +552,8 @@ const channelConfig = `<channel version="3.5.1">
 
         </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
       </elements>
-      <inboundTemplate encoding="base64">ewogICAgImFwcGxpY2F0aW9uX3NlbmRpbmciIDogIkVQSUNBRFQiLAogICAgInNlbmRpbmdfZmFj
-aWxpdHkiIDogIkRIIiwKICAgICJyZWNlaXZpbmdfYXBwbGljYXRpb24iIDogIkxBQkFEVCIsCiAg
-ICAicmVjZWl2aW5nX2ZhY2lsaXR5IiA6ICJESCIsCiAgICAidGltZSI6ICIyMDEzMDEwMTEyMjYi
-LAogICAgIm1lc3NhZ2VfdHlwZSIgOiAiQURUXkEwMSIsCiAgICAibWVzc2FnZV9jb250cm9sX2lk
-IiA6ICJITDdNU0cwMDAwMSIsCiAgICAicHJvY2Vzc19pZCIgOiAiUCIsCiAgICAidmVyc2lvbl9p
-ZCI6ICIyLjMiCn0K</inboundTemplate>
-      <outboundTemplate encoding="base64">TVNIfF5+XCZ8RVBJQ0FEVHxESHxMQUJBRFR8REh8MjAxMzAxMDExMjI2fHxBRFReQTAxfEhMN01T
-RzAwMDAxfFB8Mi4zfCAKUElEfHx8fHx8fHx8fHx8fHx8fHx8fHwKUEQxfHx8fHw=</outboundTemplate>
+      <inboundTemplate encoding="base64">ew0KICAgICJhcHBsaWNhdGlvbl9zZW5kaW5nIjogIiIsDQogICAgInNlbmRpbmdfZmFjaWxpdHkiOiAiIiwNCiAgICAicmVjZWl2aW5nX2FwcGxpY2F0aW9uIjogIiIsDQogICAgInJlY2VpdmluZ19mYWNpbGl0eSI6ICIiLA0KICAgICJ0aW1lIjogIiIsDQogICAgIm1lc3NhZ2VfdHlwZSI6ICIiLA0KICAgICJtZXNzYWdlX2NvbnRyb2xfaWQiOiAiIiwNCiAgICAicHJvY2Vzc19pZCI6ICIiLA0KICAgICJ2ZXJzaW9uX2lkIjogIjIuNCINCn0NCg==</inboundTemplate>
+      <outboundTemplate encoding="base64">TVNIfF5+XCZ8fHx8fHx8fHx8Mi40</outboundTemplate>
       <inboundDataType>JSON</inboundDataType>
       <outboundDataType>HL7V2</outboundDataType>
       <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
@@ -731,6 +725,8 @@ RzAwMDAxfFB8Mi4zfCAKUElEfHx8fHx8fHx8fHx8fHx8fHx8fHwKUEQxfHx8fHw=</outboundTempla
       </transformer>
       <responseTransformer version="3.5.1">
         <elements/>
+        <inboundTemplate encoding="base64">TVNIfF5+XCZ8fHx8fHx8fHx8Mi40</inboundTemplate>
+        <outboundTemplate encoding="base64">TVNIfF5+XCZ8fHx8fHx8fHx8Mi40</outboundTemplate>
         <inboundDataType>HL7V2</inboundDataType>
         <outboundDataType>HL7V2</outboundDataType>
         <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="3.5.1">

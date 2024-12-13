@@ -1,7 +1,7 @@
 const axios = require('axios');
 const https = require('https');
 
-const mirthBaseURL = 'https://20.82.7.149:8443/api';
+const mirthBaseURL = `https://${process.env.MIRTH_SERVER}:8443/api`;
 const mirthUsername = 'admin';
 const mirthPassword = 'admin';
 
@@ -73,8 +73,41 @@ const deployMirthChannel = async(channelId) => {
     }
 };
 
+const sendJsonToChannel = async(jsonFile, channelId) => {
+    try {
+        const encodedCredentials = Buffer.from(`${mirthUsername}:${mirthPassword}`).toString('base64');
+        const url = `${mirthBaseURL}/channels/${encodeURIComponent(channelId)}/messages`;
+
+        console.log("jsonfile: ", jsonFile)
+        console.log("urlll: ", url)
+            // const destinationMetaDataId = [2];
+
+        const response = await axios.post(
+            url,
+            jsonFile, {
+                params: { destinationMetaDataId: 2 },
+                headers: {
+                    Authorization: `Basic ${encodedCredentials}`,
+                    'Content-Type': 'text/plain',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+            }
+        );
+
+        console.log('JSON sent successfully:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error sending JSON to channel:', error.message);
+        console.error('Details:', error.response.data || error.toJSON());
+        throw error;
+    }
+};
+
+
 module.exports = {
     getMirthToken,
     createMirthChannel,
     deployMirthChannel,
+    sendJsonToChannel,
 };
