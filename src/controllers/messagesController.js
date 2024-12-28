@@ -1,5 +1,5 @@
 // src/controllers/messagesController.js
-const { getMessageData } = require('../models/messagesModel');
+const { getMessageData, addemail } = require('../models/messagesModel');
 
 const fetchMessages = async(req, res) => {
     const { messageType } = req.params;
@@ -138,4 +138,22 @@ const fetchMessages = async(req, res) => {
     }
 };
 
-module.exports = { fetchMessages };
+
+const addEmail = async(req, res) => {
+    const { email, userId } = req.body;
+    if (!email || !userId) {
+        return res.status(400).send({ message: 'Email is required' });
+    }
+
+    console.log("email: ", email, " userId: ", userId)
+
+    try {
+        await addemail(email, userId);
+        res.send({ message: 'Email added successfully!' });
+    } catch (error) {
+        console.error('Error adding email:', error);
+        res.status(500).send({ message: 'Failed to add email.' });
+    }
+};
+
+module.exports = { fetchMessages, addEmail };

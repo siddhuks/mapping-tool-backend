@@ -100,4 +100,12 @@ ORDER BY
     return result.recordset;
 };
 
-module.exports = { getMessageData };
+const addemail = async(email, userId) => {
+    const pool = await poolPromise;
+    await pool.request()
+        .input('email', sql.NVarChar, email)
+        .input('userId', sql.NVarChar, userId.toString())
+        .query('UPDATE dbo.Users SET email = @email WHERE id = @userId');
+};
+
+module.exports = { getMessageData, addemail };

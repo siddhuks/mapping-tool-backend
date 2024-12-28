@@ -5,6 +5,7 @@ const authenticateToken = (req, res, next) => {
     // Get the token from the Authorization header or query parameters
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Expected format: "Bearer <token>"
+    // console.log("req.headers: ", req.headers)
     console.log("Authenticating... ")
     if (!token) {
         return res.status(401).json({ message: 'Unauthorized: No token provided' });

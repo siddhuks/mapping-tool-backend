@@ -2,15 +2,19 @@ const { getMirthToken, createMirthChannel, deployMirthChannel, sendJsonToChannel
 let channelConfig = require('./channelConfig');
 const port = '8083';
 
+let latestMessage;
+
 
 const createChannel = async(req, res) => {
 
     try {
-        console.log("req.body: ", req.body)
+        // console.log("req.body: ", req.body)
 
-        const { user, selectedType, mappings } = req.body;
+        const { user, selectedType, mappings, toggleValidation } = req.body;
 
-        console.log("mappings: ", mappings)
+        // console.log("mappings: ", mappings)
+
+        console.log("toggleValidation: ", toggleValidation)
 
         if (!user || !selectedType) {
             return res.status(400).json({ error: 'User and Message Type are required' });
@@ -35,7 +39,76 @@ const createChannel = async(req, res) => {
         // channelConfig = channelConfig.replace(/<host>.*?<\/host>/s, `<host>${ip}</host>`);
         // channelConfig = channelConfig.replace(/<port>.*?<\/port>/s, `<port>${port}</port>`);
 
-        console.log('Generated channelId:', channelId);
+        // console.log('Generated channelId:', channelId);
+
+        // Convert toggleValidation array to JavaScript code
+        const toggleValidationScript = `
+            var toggleValidation = ${JSON.stringify(toggleValidation)};
+        `;
+
+        console.log('toggleValidationScript: ', toggleValidationScript)
+
+        // Inject toggleValidation and validation logic into the preprocessing script
+        const validationLogic = `
+        <![CDATA[ 
+    ${toggleValidationScript}
+        
+
+    try {
+        var messageObj = JSON.parse(message);
+
+        function validateField(messageObj, fieldPath) {
+        
+            // Evaluate the field path dynamically
+            var fieldValue = eval('messageObj' + fieldPath);
+            logger.info("fieldValue: " + fieldValue);
+
+            // Check if the value is null or undefined
+            return fieldValue !== null && fieldValue !== undefined && fieldValue !== '';
+        } 
+
+        // Loop through the toggleValidation array and validate each field
+        var validationResults = toggleValidation.map(function(fieldPath) {
+            return {
+                fieldPath: fieldPath,
+                isValid: validateField(messageObj, fieldPath)
+            };
+        });
+
+        logger.info("Validation Results: " + JSON.stringify(validationResults));
+
+        // Check for invalid fields and throw an error if any are invalid
+        var invalidFields = validationResults.filter(function(result) {
+            return !result.isValid;
+        });
+
+        if (invalidFields.length > 0) {
+            throw 'Error: The following fields have invalid values: ' +
+                JSON.stringify(invalidFields.map(function(result) {
+                    return result.fieldPath;
+            }));
+        }
+
+        // Return the original message
+        return message;
+    } 
+        catch (e) {
+        // Log the error for debugging
+        logger.error('Preprocessor Script Error: ' + e);
+        throw e; // Re-throw the error to stop processing
+    }
+       
+            
+        return message; ]]>
+
+    `;
+
+        channelConfig = channelConfig.replace(
+            /<preprocessingScript>.*?<\/preprocessingScript>/s,
+            `<preprocessingScript>${validationLogic}</preprocessingScript>`
+        );
+
+
 
         // Generate the dynamic script based on the mappings
         const dynamicScript = Object.entries(mappings)
@@ -60,7 +133,7 @@ const createChannel = async(req, res) => {
         console.log("Updated Channel Config:", channelConfig);
 
         const token = await getMirthToken();
-        console.log("token: login", token)
+        // console.log("token: login", token)
 
 
         //const newChannel = await createMirthChannel(token, channelConfig);
@@ -104,8 +177,31 @@ const sendJSON = async(req, res) => {
         res.json({ message: 'JSON sent successfully!', response });
     } catch (error) {
         console.error('Error sending JSON:', error.message);
-        res.status(500).json({ error: 'Failed to send JSON to the channel' });
+        // Return the error message to the frontend
+        res.status(400).json({ error: error.message });
     }
+};
+
+const receiveHL7Message = (req, res) => {
+    try {
+        const hl7Message = req.body; // Assuming JSON payload
+        console.log("Received HL7 message:", hl7Message);
+        console.log("hl7Message: ", hl7Message)
+        latestMessage = hl7Message;
+        console.log("latestMessage: ", latestMessage)
+
+
+        // Process the HL7 message as needed
+        res.status(200).json({ message: 'HL7 message received and broadcasted successfully!' });
+    } catch (error) {
+        console.error('Error processing HL7 message:', error.message);
+        res.status(500).json({ error: 'Failed to process HL7 message' });
+    }
+};
+
+const fetchHL7Messages = (req, res) => {
+    console.log(" fetching...", latestMessage)
+    res.status(200).json({ messages: latestMessage });
 };
 
 
@@ -114,7 +210,9 @@ const sendJSON = async(req, res) => {
 module.exports = {
     createChannel,
     deployChannel,
-    sendJSON
+    sendJSON,
+    receiveHL7Message,
+    fetchHL7Messages
 };
 
 
