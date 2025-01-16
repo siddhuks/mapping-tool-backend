@@ -5,7 +5,9 @@ const fetchMessages = async(req, res) => {
     const { messageType } = req.params;
 
     try {
+        console.time('FetchMessages');
         const recordset = await getMessageData(messageType);
+        console.timeEnd('FetchMessages');
         const data = {};
 
         // Process data into the desired format
@@ -133,6 +135,7 @@ const fetchMessages = async(req, res) => {
 
         res.json(data);
     } catch (error) {
+        console.log("error: ", error)
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Database query error' });
     }

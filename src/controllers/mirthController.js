@@ -1,6 +1,6 @@
 const { getMirthToken, createMirthChannel, deployMirthChannel, sendJsonToChannel } = require('./mirthService');
 let channelConfig = require('./channelConfig');
-const port = '8083';
+const port = '8084';
 
 let latestMessage;
 

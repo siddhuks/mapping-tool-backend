@@ -93,6 +93,7 @@ ORDER BY
 `;
 
     const pool = await poolPromise;
+    console.log("pool: ", messageType)
     const result = await pool.request()
         .input('messageType', sql.NVarChar, messageType)
         .query(query);
