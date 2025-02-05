@@ -23,6 +23,8 @@ const app = require('./src/app');
 // });
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || 'localhost'; // Set a default to prevent errors
+
 app.listen(PORT, () => {
-    console.log(`Server is running on https://${process.env.HOST}:${PORT}`);
+    console.log(`Server is running on https://${HOST}:${PORT}`);
 });

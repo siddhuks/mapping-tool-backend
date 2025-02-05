@@ -120,7 +120,7 @@ const createChannel = async(req, res) => {
         const contextPath = `/user/${user.username}/${selectedType}`;
 
         const port = await allocatePort(); // Use updated function
-        process.env.ALLOCATED_PORT = port;
+        // process.env.ALLOCATED_PORT = port;
         if (!port) {
             console.error("All ports are in use. Cannot create channel.");
             return res.status(400).json({ error: "All ports are currently in use. Please try again later." });
@@ -150,7 +150,7 @@ const createChannel = async(req, res) => {
             .replace(/<id>.*?<\/id>/s, `<id>${channelId}</id>`)
             .replace(/<name>.*?<\/name>/s, `<name>${channelName}</name>`)
             .replace(/<contextPath>.*?<\/contextPath>/s, `<contextPath>${contextPath}</contextPath>`)
-            .replace(/<port>.*?<\/port>/s, `<port>${process.env.ALLOCATED_PORT}</port>`);
+            .replace(/<port>.*?<\/port>/s, `<port>${port}</port>`);
 
 
         // channelConfig = channelConfig.replace(/<id>.*?<\/id>/s, `<id>${channelId}</id>`);
