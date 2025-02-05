@@ -22,7 +22,7 @@ const app = require('./src/app');
 //     });
 // });
 
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 8084;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
