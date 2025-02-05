@@ -150,7 +150,7 @@ tmp[&apos;SCH&apos;][&apos;SCH.25&apos;][&apos;SCH.25.3&apos;] = msg[0][&apos;ap
           <queueBufferSize>1000</queueBufferSize>
           <reattachAttachments>true</reattachAttachments>
         </destinationConnectorProperties>
-        <host>http://localhost:5000/api/mirth/receive</host>
+        <host>https://\${process.env.HOST}/api/mirth/receive</host>
         <useProxyServer>false</useProxyServer>
         <proxyAddress></proxyAddress>
         <proxyPort></proxyPort>

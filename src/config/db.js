@@ -9,7 +9,8 @@ const dbConfig = {
         type: 'default'
     },
     options: {
-        encrypt: true
+        encrypt: true,
+        trustServerCertificate: true
     }
 };
 

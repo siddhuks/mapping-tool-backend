@@ -1,8 +1,95 @@
 const { getMirthToken, createMirthChannel, deployMirthChannel, sendJsonToChannel } = require('./mirthService');
 let channelConfig = require('./channelConfig');
-const port = '8084';
 
-let latestMessage;
+const { allocatePort } = require('./portAllocator');
+
+// (async() => {
+// try {
+//     if (!process.env.ALLOCATED_PORT) {
+//         const port = await allocatePort(); // Use updated function
+//         process.env.ALLOCATED_PORT = port;
+//         console.log("Allocated Port:", port);
+//     }
+// } catch (error) {
+//     console.error("Port allocation failed:", error.message);
+// }
+// })();
+
+// const port = '8086';
+
+let latestMessage = '';
+
+// const generateHL7Template = (mappings) => {
+//     let template = "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
+
+//     // Track the highest instance number for each segment
+//     const segmentMaxIndex = {};
+
+//     Object.entries(mappings).forEach(([key, value]) => {
+//         // Extract segment name and instance index (e.g., 'OBX[0]', 'OBX[1]')
+//         const match = key.match(/^tmp\['(\w+)'\]\[(\d+)\]/);
+//         if (match) {
+//             const [, segment, index] = match;
+//             const instance = parseInt(index, 10);
+
+//             // Track the highest instance index for each segment
+//             segmentMaxIndex[segment] = Math.max(segmentMaxIndex[segment] || 0, instance);
+//         }
+//     });
+
+//     // Generate the correct number of lines for each segment
+//     Object.keys(segmentMaxIndex).forEach((segment) => {
+//         for (let i = 0; i <= segmentMaxIndex[segment]; i++) {
+//             template += `${segment}|${Array(50).fill('').join('|')}\n`; // Adds empty HL7 segment line
+//         }
+//     });
+
+//     return Buffer.from(template).toString('base64'); // Encode to Base64 for Mirth
+// };
+
+const generateHL7Template = (mappings) => {
+    let template =
+        "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
+
+
+    const segmentMaxIndex = {};
+
+
+    Object.entries(mappings).forEach(([key]) => {
+
+        const match = key.match(/^tmp\['(\w+)'\]\[(\d+)\]/);
+        if (match) {
+            const [, segment, index] = match;
+            const instance = parseInt(index, 10);
+
+            segmentMaxIndex[segment] = Math.max(segmentMaxIndex[segment] || 0, instance);
+        }
+    });
+
+
+    const defaultSegments = ['PID', 'PV1'];
+
+
+    defaultSegments.forEach((segment) => {
+        if (!(segment in segmentMaxIndex)) {
+            segmentMaxIndex[segment] = 0;
+        }
+    });
+
+
+    Object.keys(segmentMaxIndex).forEach((segment) => {
+
+        if (segment === 'MSH') return;
+        for (let i = 0; i <= segmentMaxIndex[segment]; i++) {
+
+            template += `${segment}|${Array(50).fill('').join('|')}\n`;
+        }
+    });
+
+    return Buffer.from(template).toString('base64');
+};
+
+
 
 
 const createChannel = async(req, res) => {
@@ -12,7 +99,7 @@ const createChannel = async(req, res) => {
 
         const { user, selectedType, mappings, toggleValidation } = req.body;
 
-        // console.log("mappings: ", mappings)
+        console.log("mappings: ", mappings)
 
         console.log("toggleValidation: ", toggleValidation)
 
@@ -21,17 +108,49 @@ const createChannel = async(req, res) => {
         }
 
 
+        const updatedMappings = Object.entries(mappings).reduce((acc, [key, value]) => {
+            acc[key] = value === 'serverTime' ? `DateUtil.getCurrentDate('yyyyMMddHHmmss')` : value;
+            return acc;
+        }, {});
+
+        console.log("Updated Mappings: ", updatedMappings);
+
         const channelId = `${user.username}-${selectedType}`;
         const channelName = `${user.username}_${selectedType}`;
         const contextPath = `/user/${user.username}/${selectedType}`;
-        const ip = '0.0.0.0';
+
+        const port = await allocatePort(); // Use updated function
+        process.env.ALLOCATED_PORT = port;
+        if (!port) {
+            console.error("All ports are in use. Cannot create channel.");
+            return res.status(400).json({ error: "All ports are currently in use. Please try again later." });
+        }
+
+        console.log(`Allocated Port: ${port}`);
+
+        const hostUrl = `https://${process.env.HOST}/api/mirth/receive`;
+        const ip = '0.0.0.0'; // This should only be used for the sourceConnector
+
+        // Replace ONLY the <host> inside <destinationConnectors>
+        channelConfig = channelConfig.replace(
+            /(<destinationConnectors>[\s\S]*?<host>)(.*?)(<\/host>)/,
+            `$1${hostUrl}$3`
+        );
+
+        // Replace ONLY the <host> inside <sourceConnector>
+        channelConfig = channelConfig.replace(
+            /(<sourceConnector>[\s\S]*?<host>)(.*?)(<\/host>)/,
+            `$1${ip}$3`
+        );
+
+
+
 
         channelConfig = channelConfig
             .replace(/<id>.*?<\/id>/s, `<id>${channelId}</id>`)
             .replace(/<name>.*?<\/name>/s, `<name>${channelName}</name>`)
             .replace(/<contextPath>.*?<\/contextPath>/s, `<contextPath>${contextPath}</contextPath>`)
-            .replace(/<host>.*?<\/host>/s, `<host>${ip}</host>`)
-            .replace(/<port>.*?<\/port>/s, `<port>${port}</port>`);
+            .replace(/<port>.*?<\/port>/s, `<port>${process.env.ALLOCATED_PORT}</port>`);
 
 
         // channelConfig = channelConfig.replace(/<id>.*?<\/id>/s, `<id>${channelId}</id>`);
@@ -111,18 +230,48 @@ const createChannel = async(req, res) => {
 
 
         // Generate the dynamic script based on the mappings
-        const dynamicScript = Object.entries(mappings)
+        const dynamicScript = Object.entries(updatedMappings)
             .map(([key, value]) => {
                 // Check if the value starts with 'msg'
-                const formattedValue = value.startsWith('msg') ? value : `'${value}'`;
-                const escapedKey = key.replace(/'/g, '&apos;');
-                const escapedValue = formattedValue.replace(/'/g, '&apos;');
-                return `${escapedKey} = ${escapedValue};`;
+                // const formattedValue =
+                //     value === `DateUtil.getCurrentDate('yyyyMMddHHmmss')` ?
+                //     value // Keep DateUtil calls as is (no quotes)
+                //     :
+                //     value.startsWith('msg') ?
+                //     value // Keep 'msg' references as is (no quotes)
+                //     :
+                //     `'${value.replace(/\\\\/g, '\\').replace(/'/g, "\\'")}'`;
+                // const escapedKey = key.replace(/'/g, '&apos;');
+                // const escapedValue = value.replace(/&/g, '&amp;').replace(/'/g, '&apos;');
+                // return `${escapedKey} = ${escapedValue};`;
                 // return `${key} = ${formattedValue};`;
+
+                const formattedValue =
+                    value === `DateUtil.getCurrentDate('yyyyMMddHHmmss')` ?
+                    value // Keep DateUtil calls as is (no quotes)
+                    :
+                    value.startsWith('msg') ?
+                    value // Keep 'msg' references as is (no quotes)
+                    :
+                    `'${value.replace(/\\\\/g, '\\').replace(/'/g, "\\'")}'`; // Wrap in quotes, reduce \\ to \, escape '
+
+                // Escape the value for XML
+                const escapedValue = formattedValue
+                    .replace(/&/g, '&amp;') // Escape ampersand
+                    .replace(/</g, '&lt;') // Escape less-than
+                    .replace(/>/g, '&gt;') // Escape greater-than
+                    .replace(/"/g, '&quot;') // Escape double quotes
+                    .replace(/'/g, '&apos;'); // Escape single quotes for XML
+
+                // Escape the key for XML
+                const escapedKey = key.replace(/'/g, '&apos;');
+
+                // Return the XML-safe script line
+                return `${escapedKey} = ${escapedValue};`;
             })
             .join('\n');
 
-        console.log('Generated Script:', dynamicScript);
+        // console.log('Generated Script:', dynamicScript);
 
         // Inject the dynamic script into the channelConfig XML
         channelConfig = channelConfig.replace(
@@ -131,6 +280,14 @@ const createChannel = async(req, res) => {
         );
 
         console.log("Updated Channel Config:", channelConfig);
+
+        // Generate HL7 Template and replace in channelConfig
+        const hl7Template = generateHL7Template(updatedMappings);
+        channelConfig = channelConfig.replace(
+            /<outboundTemplate encoding="base64">.*?<\/outboundTemplate>/s,
+            `<outboundTemplate encoding="base64">${hl7Template}</outboundTemplate>`
+        );
+
 
         const token = await getMirthToken();
         // console.log("token: login", token)
@@ -144,6 +301,7 @@ const createChannel = async(req, res) => {
         res.json({ message: 'Channel created successfully!', channelId: channelId, contextPath: contextPath });
     } catch (error) {
         console.error('Error creating channel:', error);
+        // res.status(400).json({ error: 'Failed to create channel/Port in use' });
         res.status(500).json({ error: 'Failed to create channel' });
     }
 };
@@ -158,7 +316,7 @@ const deployChannel = async(req, res) => {
 
         await deployMirthChannel(channelId);
 
-        res.json({ message: 'Channel deployed successfully!', url: `http://${process.env.MIRTH_SERVER}:${port}` });
+        res.json({ message: 'Channel deployed successfully!', url: `http://${process.env.MIRTH_SERVER}:${process.env.ALLOCATED_PORT}` });
     } catch (error) {
         console.error('Error deploying channel:', error);
         res.status(500).json({ error: 'Failed to deploy channel' });
@@ -186,7 +344,6 @@ const receiveHL7Message = (req, res) => {
     try {
         const hl7Message = req.body; // Assuming JSON payload
         console.log("Received HL7 message:", hl7Message);
-        console.log("hl7Message: ", hl7Message)
         latestMessage = hl7Message;
         console.log("latestMessage: ", latestMessage)
 
