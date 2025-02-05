@@ -20,11 +20,16 @@ try {
     poolPromise = new sql.ConnectionPool(dbConfig)
         .connect()
         .then((pool) => {
-            console.log('Connected to Azure SQL Database');
+            console.log("Connected to Azure SQL Database");
             return pool;
+        })
+        .catch((err) => {
+            console.error("Database Connection Failed:", err.message);
+            process.exit(1);
         });
 } catch (err) {
-    console.error('Database Connection Failed:', err.message);
+    console.error("Database Initialization Error:", err.message);
+    process.exit(1);
 }
 
 module.exports = {
