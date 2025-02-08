@@ -22,7 +22,12 @@ const app = require('./src/app');
 //     });
 // });
 
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
+
 const PORT = process.env.PORT || process.env.WEBSITES_PORT || 8080;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

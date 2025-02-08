@@ -17,9 +17,9 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 
 
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
+// app.get('/health', (req, res) => {
+//     res.status(200).send('OK');
+// });
 
 
 // Middleware specifically for /mirth/receive
