@@ -4,10 +4,10 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const authRoutes = require("./routes/authRoutes");
-const authenticateToken = require('./middlewares/authMiddleware');
-const messagesRoutes = require("./routes/messagesRoutes");
-const mirthRoutes = require('./routes/mirthRoutes');
+const authRoutes = require("./src/routes/authRoutes");
+const authenticateToken = require('./src/middlewares/authMiddleware');
+const messagesRoutes = require("./src/routes/messagesRoutes");
+const mirthRoutes = require('./src/routes/mirthRoutes');
 
 const app = express();
 
