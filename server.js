@@ -1,5 +1,5 @@
 require('dotenv').config();
-const app = require('./app');
+const app = require('./src/app');
 // const http = require('http');
 // const socketIo = require('socket.io');
 
