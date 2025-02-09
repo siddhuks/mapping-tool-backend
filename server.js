@@ -27,7 +27,7 @@ app.get('/health', (req, res) => {
 });
 
 
-const PORT = process.env.PORT || process.env.WEBSITES_PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
