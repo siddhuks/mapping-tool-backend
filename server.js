@@ -23,6 +23,7 @@ const app = require('./src/app');
 // });
 
 app.get('/health', (req, res) => {
+    console.log('routing health check')
     res.status(200).send('OK');
 });
 

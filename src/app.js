@@ -32,14 +32,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api", messagesRoutes);
 app.use('/api', mirthRoutes);
 
-app.use((req, res, next) => {
-    console.log("routing...", req.path)
+// app.use((req, res, next) => {
+//     console.log("routing...", req.path)
 
-    if (req.path === '/api/mirth/receive' || req.path === '/api/mirth/messages') {
-        console.log("path is ", req.path)
-        return next(); // Skip `authenticateToken` for this route
-    }
-});
+//     if (req.path === '/api/mirth/receive' || req.path === '/api/mirth/messages') {
+//         console.log("path is ", req.path)
+//         return next(); // Skip `authenticateToken` for this route
+//     }
+// });
 
 
 module.exports = app;
