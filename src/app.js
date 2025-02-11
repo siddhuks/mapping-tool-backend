@@ -37,7 +37,7 @@ app.use('/api', mirthRoutes);
 
 //     if (req.path === '/api/mirth/receive' || req.path === '/api/mirth/messages') {
 //         console.log("path is ", req.path)
-//         return next(); // Skip `authenticateToken` for this route
+//         return next(); // 
 //     }
 // });
 

@@ -3,6 +3,7 @@ let channelConfig = require('./channelConfig');
 
 const { allocatePort } = require('./portAllocator');
 
+
 // (async() => {
 // try {
 //     if (!process.env.ALLOCATED_PORT) {
@@ -18,6 +19,7 @@ const { allocatePort } = require('./portAllocator');
 // const port = '8086';
 
 let latestMessage = '';
+let port_allocated = '';
 
 // const generateHL7Template = (mappings) => {
 //     let template = "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
@@ -119,8 +121,9 @@ const createChannel = async(req, res) => {
         const channelName = `${user.username}_${selectedType}`;
         const contextPath = `/user/${user.username}/${selectedType}`;
 
-        const port = await allocatePort(); // Use updated function
-        // process.env.ALLOCATED_PORT = port;
+        const port = await allocatePort();
+        port_allocated = port
+            // process.env.ALLOCATED_PORT = port;
         if (!port) {
             console.error("All ports are in use. Cannot create channel.");
             return res.status(400).json({ error: "All ports are currently in use. Please try again later." });
@@ -279,7 +282,7 @@ const createChannel = async(req, res) => {
             `<script>${dynamicScript}</script>`
         );
 
-        console.log("Updated Channel Config:", channelConfig);
+        // console.log("Updated Channel Config:", channelConfig);
 
         // Generate HL7 Template and replace in channelConfig
         const hl7Template = generateHL7Template(updatedMappings);
@@ -316,7 +319,7 @@ const deployChannel = async(req, res) => {
 
         await deployMirthChannel(channelId);
 
-        res.json({ message: 'Channel deployed successfully!', url: `http://${process.env.MIRTH_SERVER}:${process.env.ALLOCATED_PORT}` });
+        res.json({ message: 'Channel deployed successfully!', url: `http://${process.env.MIRTH_SERVER}:${port_allocated}` });
     } catch (error) {
         console.error('Error deploying channel:', error);
         res.status(500).json({ error: 'Failed to deploy channel' });
