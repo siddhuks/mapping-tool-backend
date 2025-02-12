@@ -21,75 +21,75 @@ const { allocatePort } = require('./portAllocator');
 let latestMessage = '';
 let port_allocated = '';
 
-// const generateHL7Template = (mappings) => {
-//     let template = "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
-
-//     // Track the highest instance number for each segment
-//     const segmentMaxIndex = {};
-
-//     Object.entries(mappings).forEach(([key, value]) => {
-//         // Extract segment name and instance index (e.g., 'OBX[0]', 'OBX[1]')
-//         const match = key.match(/^tmp\['(\w+)'\]\[(\d+)\]/);
-//         if (match) {
-//             const [, segment, index] = match;
-//             const instance = parseInt(index, 10);
-
-//             // Track the highest instance index for each segment
-//             segmentMaxIndex[segment] = Math.max(segmentMaxIndex[segment] || 0, instance);
-//         }
-//     });
-
-//     // Generate the correct number of lines for each segment
-//     Object.keys(segmentMaxIndex).forEach((segment) => {
-//         for (let i = 0; i <= segmentMaxIndex[segment]; i++) {
-//             template += `${segment}|${Array(50).fill('').join('|')}\n`; // Adds empty HL7 segment line
-//         }
-//     });
-
-//     return Buffer.from(template).toString('base64'); // Encode to Base64 for Mirth
-// };
-
 const generateHL7Template = (mappings) => {
-    let template =
-        "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
+    let template = "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
 
-
+    // Track the highest instance number for each segment
     const segmentMaxIndex = {};
 
-
-    Object.entries(mappings).forEach(([key]) => {
-
+    Object.entries(mappings).forEach(([key, value]) => {
+        // Extract segment name and instance index (e.g., 'OBX[0]', 'OBX[1]')
         const match = key.match(/^tmp\['(\w+)'\]\[(\d+)\]/);
         if (match) {
             const [, segment, index] = match;
             const instance = parseInt(index, 10);
 
+            // Track the highest instance index for each segment
             segmentMaxIndex[segment] = Math.max(segmentMaxIndex[segment] || 0, instance);
         }
     });
 
-
-    const defaultSegments = ['PID', 'PV1'];
-
-
-    defaultSegments.forEach((segment) => {
-        if (!(segment in segmentMaxIndex)) {
-            segmentMaxIndex[segment] = 0;
-        }
-    });
-
-
+    // Generate the correct number of lines for each segment
     Object.keys(segmentMaxIndex).forEach((segment) => {
-
-        if (segment === 'MSH') return;
         for (let i = 0; i <= segmentMaxIndex[segment]; i++) {
-
-            template += `${segment}|${Array(50).fill('').join('|')}\n`;
+            template += `${segment}|${Array(50).fill('').join('|')}\n`; // Adds empty HL7 segment line
         }
     });
 
-    return Buffer.from(template).toString('base64');
+    return Buffer.from(template).toString('base64'); // Encode to Base64 for Mirth
 };
+
+// const generateHL7Template = (mappings) => {
+//     let template =
+//         "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
+
+
+//     const segmentMaxIndex = {};
+
+
+//     Object.entries(mappings).forEach(([key]) => {
+
+//         const match = key.match(/^tmp\['(\w+)'\]\[(\d+)\]/);
+//         if (match) {
+//             const [, segment, index] = match;
+//             const instance = parseInt(index, 10);
+
+//             segmentMaxIndex[segment] = Math.max(segmentMaxIndex[segment] || 0, instance);
+//         }
+//     });
+
+
+//     const defaultSegments = ['PID', 'PV1'];
+
+
+//     defaultSegments.forEach((segment) => {
+//         if (!(segment in segmentMaxIndex)) {
+//             segmentMaxIndex[segment] = 0;
+//         }
+//     });
+
+
+//     Object.keys(segmentMaxIndex).forEach((segment) => {
+
+//         if (segment === 'MSH') return;
+//         for (let i = 0; i <= segmentMaxIndex[segment]; i++) {
+
+//             template += `${segment}|${Array(50).fill('').join('|')}\n`;
+//         }
+//     });
+
+//     return Buffer.from(template).toString('base64');
+// };
 
 
 
