@@ -121,38 +121,39 @@ const sendJsonToChannel = async(jsonFile, channelId) => {
 
 // Get list of ports currently in use by Mirth Connect
 const getMirthPortsInUse = async() => {
-    const url = `${mirthBaseURL}/channels/portsInUse`;
-    const encodedCredentials = Buffer.from(`${mirthUsername}:${mirthPassword}`).toString('base64');
-
     try {
-        const response = await axios.get(url, {
+        const encodedCredentials = Buffer.from(`${mirthUsername}:${mirthPassword}`).toString('base64');
+
+        let response = await axios.get(`${mirthBaseURL}/channels/portsInUse`, {
             headers: {
                 Authorization: `Basic ${encodedCredentials}`,
                 'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
             },
             httpsAgent: new https.Agent({ rejectUnauthorized: false }),
         });
 
-        console.log("Raw Mirth Ports In Use Response:", JSON.stringify(response.data, null, 2));
+        let portsData = response.data;
 
-        // Extract the port numbers correctly
-        const portData = response.data.list["com.mirth.connect.donkey.model.channel.Ports"];
+        if (portsData.list && portsData.list["com.mirth.connect.donkey.model.channel.Ports"]) {
+            let extractedData = portsData.list["com.mirth.connect.donkey.model.channel.Ports"];
 
-        if (!Array.isArray(portData)) {
-            console.error("Unexpected format: Expected an array of port objects");
+            portsData = Array.isArray(extractedData) ? extractedData : [extractedData];
+        } else {
+            console.warn("Unexpected response format from Mirth API:", portsData);
             return [];
         }
 
-        // Extract only port numbers
-        const activePorts = portData.map(portObj => portObj.port).filter(port => typeof port === "number");
+        const activePorts = portsData.map(portObj => portObj.port).filter(Boolean);
 
-        console.log("Extracted Active Ports:", activePorts);
+        console.log("Fetched ports from /channels/portsInUse:", activePorts);
         return activePorts;
     } catch (error) {
-        console.error("Error fetching Mirth ports in use:", error.message);
+        console.warn("Failed to fetch ports from /channels/portsInUse:", error.message);
         return [];
     }
 };
+
 
 
 
