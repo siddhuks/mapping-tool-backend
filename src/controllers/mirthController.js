@@ -18,36 +18,57 @@ const { allocatePort } = require('./portAllocator');
 
 // const port = '8086';
 
-let latestMessage = '';
+let latestMessages = '';
 let port_allocated = '';
 
-const generateHL7Template = (mappings) => {
-    let template = "MSH|^~\\&|SendingApp|SendingFacility|ReceivingApp|ReceivingFacility|20250101010101|||12345|P|2.4\n";
+const generateHL7Template = (updatedMappings) => {
+    let template = "MSH|^~\\&||||||||||2.4\n";
 
-    // Track the highest instance number for each segment
-    const segmentMaxIndex = {};
+    const repeatingSegments = ["OBR", "OBX", "NTE", "AL1", "CTD", "DG1", "FT1", "CTI", "SFT", "ARV", "ROL", "NK1", "DB1", "AUT", "RF1", "TQ1"]
 
-    Object.entries(mappings).forEach(([key, value]) => {
-        // Extract segment name and instance index (e.g., 'OBX[0]', 'OBX[1]')
-        const match = key.match(/^tmp\['(\w+)'\]\[(\d+)\]/);
+    const segmentMaxIndex = {}; // Track highest instance number for each segment
+    const allSegments = new Set(); // Track all unique segments
+
+    // Identify segments and their highest index
+    Object.entries(updatedMappings).forEach(([key, value]) => {
+        const match = key.match(/^tmp\['(\w+)'\](?:\[(\d+)\])?/);
         if (match) {
-            const [, segment, index] = match;
-            const instance = parseInt(index, 10);
+            const segment = match[1];
+            const instance = match[2] ? parseInt(match[2], 10) : 0;
 
-            // Track the highest instance index for each segment
             segmentMaxIndex[segment] = Math.max(segmentMaxIndex[segment] || 0, instance);
+            allSegments.add(segment);
         }
     });
 
-    // Generate the correct number of lines for each segment
-    Object.keys(segmentMaxIndex).forEach((segment) => {
-        for (let i = 0; i <= segmentMaxIndex[segment]; i++) {
-            template += `${segment}|${Array(50).fill('').join('|')}\n`; // Adds empty HL7 segment line
+    console.log('All Segments:', allSegments);
+    console.log('Segment Max Index:', segmentMaxIndex);
+
+    // Remove MSH from non-repeating segments since it's already in the template
+    const nonRepeatingSegments = [...allSegments].filter(seg => seg !== "MSH" && !repeatingSegments.includes(seg));
+    const repeatingSegmentKeys = [...allSegments].filter(seg => repeatingSegments.includes(seg));
+
+    // Generate non-repeating segments first
+    nonRepeatingSegments.forEach((segment) => {
+        template += `${segment}|${Array(4).fill('').join('|')}\n`; // Adds an empty HL7 segment line
+    });
+
+    console.log('Non-Repeating Segment Template:', template);
+
+    // Generate repeating segments correctly
+    repeatingSegmentKeys.forEach((segment) => {
+        const maxIndex = segmentMaxIndex[segment] || 0; // Get highest instance index
+        for (let i = 0; i <= maxIndex; i++) {
+            template += `${segment}|${Array(4).fill('').join('|')}\n`; // Add correct number of instances
         }
     });
+
+    console.log('Final Template:', template);
 
     return Buffer.from(template).toString('base64'); // Encode to Base64 for Mirth
 };
+
+
 
 // const generateHL7Template = (mappings) => {
 //     let template =
@@ -99,21 +120,83 @@ const createChannel = async(req, res) => {
     try {
         // console.log("req.body: ", req.body)
 
-        const { user, selectedType, mappings, toggleValidation } = req.body;
+        const { user, selectedType, mappings, toggleValidation, fieldValidations } = req.body;
 
         console.log("mappings: ", mappings)
 
         console.log("toggleValidation: ", toggleValidation)
 
+        console.log("fieldValidations: ", fieldValidations)
+
+
         if (!user || !selectedType) {
             return res.status(400).json({ error: 'User and Message Type are required' });
         }
 
+        if (!Array.isArray(mappings)) {
+            throw new Error("Mappings is not an array!");
+        }
 
-        const updatedMappings = Object.entries(mappings).reduce((acc, [key, value]) => {
+        const repeatingSegments = ["OBR", "OBX", "NTE"]; // Define repeating segments
+
+        mappings.sort((a, b) => {
+            const extractSegmentName = (key) => {
+                const match = key.match(/tmp\['(\w+)'\]/); // Extract the segment name
+                return match ? match[1] : null;
+            };
+
+            const aSegment = extractSegmentName(a.key);
+            const bSegment = extractSegmentName(b.key);
+
+            const aIsRepeating = repeatingSegments.includes(aSegment);
+            const bIsRepeating = repeatingSegments.includes(bSegment);
+
+            if (aIsRepeating && !bIsRepeating) {
+                return 1; // Move repeating segment after non-repeating
+            } else if (!aIsRepeating && bIsRepeating) {
+                return -1; // Move non-repeating before repeating
+            } else {
+                return a.key.localeCompare(b.key, undefined, { numeric: true }); // Default sorting
+            }
+        });
+
+        console.log("mappings after sort: ", mappings)
+
+
+        // Convert array back to object while preserving order
+        const orderedMappings = {};
+        mappings.forEach(({ key, value }) => {
+            orderedMappings[key] = value;
+        });
+
+
+
+        const updatedMappings = Object.entries(orderedMappings).reduce((acc, [key, value]) => {
+            // Check if fieldValidations[key] exists and is an array
+            const fieldKey = value.startsWith("msg") ? value.replace(/^msg/, "") : value;
+
+            // Check if fieldValidations[fieldKey] has trim: true
+            const shouldTrim = Array.isArray(fieldValidations[fieldKey]) &&
+                fieldValidations[fieldKey].some(rule => rule.trim === true);
+
+
+            console.log("Array.isArray(fieldValidations[fieldKey]) :", Array.isArray(fieldValidations[fieldKey]), " ", fieldKey);
+            console.log("shouldTrim for key:", fieldValidations[fieldKey], "=>", shouldTrim);
+
+            if (shouldTrim) {
+                if (typeof value === 'string' && !value.startsWith('msg')) {
+                    value = value.trim(); // Directly trim the value
+                    console.log('value trim: 1', value);
+                } else if (typeof value === 'string' && value.startsWith('msg')) {
+                    value = `${value}.trim()`; // Append .trim() to msg values
+                    console.log('value trim: 2', value);
+                }
+            }
+
             acc[key] = value === 'serverTime' ? `DateUtil.getCurrentDate('yyyyMMddHHmmss')` : value;
             return acc;
         }, {});
+
 
         console.log("Updated Mappings: ", updatedMappings);
 
@@ -146,7 +229,11 @@ const createChannel = async(req, res) => {
             `$1${ip}$3`
         );
 
-
+        const cleanedFieldValidations = Object.keys(fieldValidations).reduce((acc, key) => {
+            let cleanedKey = key.replace(/^tmp/, ''); // Remove "tmp" but keep bracket notation
+            acc[cleanedKey] = fieldValidations[key];
+            return acc;
+        }, {});
 
 
         channelConfig = channelConfig
@@ -170,10 +257,19 @@ const createChannel = async(req, res) => {
 
         console.log('toggleValidationScript: ', toggleValidationScript)
 
+        const fieldValidationsScript = `
+    var fieldValidations = ${JSON.stringify(cleanedFieldValidations)};
+`;
+
+        console.log('fieldValidationsScript: ', fieldValidationsScript);
+
+
         // Inject toggleValidation and validation logic into the preprocessing script
         const validationLogic = `
         <![CDATA[ 
     ${toggleValidationScript}
+
+    ${fieldValidationsScript}
         
 
     try {
@@ -210,6 +306,96 @@ const createChannel = async(req, res) => {
                     return result.fieldPath;
             }));
         }
+
+
+
+        function applyFieldValidations(fieldPath, rules) {
+            var fieldValue;
+            try {      
+ 			if (fieldPath.startsWith('[') || fieldPath.startsWith('msg')) {    
+		        fieldValue = eval('messageObj' + fieldPath);
+			 } else {
+			    fieldValue = fieldPath;
+			 }
+             fieldValue = fieldValue.trim();
+			 logger.info("Fileld value: " + fieldValue)
+			 
+            } catch (e) {
+                logger.warn("Field not found: " + fieldPath);
+                return false;
+            }
+
+            if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+                logger.warn("Skipping validation for empty value at: " + fieldPath);
+                return true;
+            }
+
+            var validationFailed = false;
+
+            for (var i = 0; i < rules.length; i++) {
+                var rule = rules[i];
+                var validationPassed = true;
+
+                if (rule.validationType === "Max Length") {
+                    var maxLength = parseInt(rule.value);
+                    if (rule.operator === "<") {
+                        validationPassed = fieldValue.length < maxLength;
+                    } else if (rule.operator === "=") {
+                        validationPassed = fieldValue.length === maxLength;
+                    }
+                } else if (rule.validationType === "Truncate") {
+			    if (rule.operator === "=") {
+			        var truncateLength = parseInt(rule.value);
+			        if (fieldValue.length > truncateLength) {
+			            fieldValue = fieldValue.substring(0, truncateLength); // Truncate the value
+			            logger.info("Truncated field value: " + fieldValue);
+			        }
+			    }
+			}
+			 else if (rule.validationType === "Regex") {
+			try {
+			   var regexPattern = new RegExp(rule.value);
+			   logger.info("Regex field value: " + fieldValue);
+			   logger.info("Regex pattern value: " + regexPattern);
+			   
+			   validationPassed = regexPattern.test(fieldValue);
+			
+			   if (!validationPassed) {
+			       logger.error("Regex validation failed for field: " + fieldPath + " | Value: " + fieldValue);
+			   } else {
+			       logger.info("Regex validation passed for field: " + fieldPath);
+			   }
+			} catch (regexError) {
+			   logger.error("Invalid regex pattern: " + rule.value + " | Error: " + regexError);
+			   validationPassed = false;
+			}
+		   }
+
+           if (!validationPassed) {
+            validationFailed = true;  
+            }
+
+            }
+           return !validationFailed; 
+        }
+
+
+
+
+        // Process all field validations
+        var fieldValidationErrors = [];
+        Object.keys(fieldValidations).forEach(function(fieldPath) {
+            var rules = fieldValidations[fieldPath];
+            if (!applyFieldValidations(fieldPath, rules)) {
+                fieldValidationErrors.push(fieldPath);
+            }
+        });
+
+        if (fieldValidationErrors.length > 0) {
+            throw 'Validation Error: Fields with errors -> ' + JSON.stringify(fieldValidationErrors);
+        }
+
+
 
         // Return the original message
         return message;
@@ -330,9 +516,13 @@ const sendJSON = async(req, res) => {
     try {
         const { jsonFile, channelId } = req.body;
 
+        latestMessages = ''
+
         if (!jsonFile || !channelId) {
             return res.status(400).json({ error: 'JSON file and Channel ID are required' });
         }
+
+
 
         const response = await sendJsonToChannel(jsonFile, channelId);
         res.json({ message: 'JSON sent successfully!', response });
@@ -347,21 +537,23 @@ const receiveHL7Message = (req, res) => {
     try {
         const hl7Message = req.body; // Assuming JSON payload
         console.log("Received HL7 message:", hl7Message);
-        latestMessage = hl7Message;
-        console.log("latestMessage: ", latestMessage)
 
+        // Ensure updates are handled properly
+        latestMessages = hl7Message;
 
-        // Process the HL7 message as needed
-        res.status(200).json({ message: 'HL7 message received and broadcasted successfully!' });
+        console.log("Stored HL7 messages:", latestMessages);
+
+        res.status(200).json({ message: 'HL7 message received and stored successfully!' });
     } catch (error) {
         console.error('Error processing HL7 message:', error.message);
         res.status(500).json({ error: 'Failed to process HL7 message' });
     }
 };
 
+
 const fetchHL7Messages = (req, res) => {
-    console.log(" fetching...", latestMessage)
-    res.status(200).json({ messages: latestMessage });
+    console.log(" fetching...", latestMessages)
+    res.status(200).json({ messages: latestMessages });
 };
 
 
